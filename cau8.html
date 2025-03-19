@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Xác suất Bán theo Tháng</title>
+    <link rel="stylesheet" href="cau8.css">
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+</head>
+<body>
+    <h2>Xác suất bán hàng của Nhóm hàng theo Tháng</h2>
+    <div class="chart-container">
+      <svg width="1100" height="550"></svg>
+    </div>
+  
+    <script>
+      d3.csv("data.csv").then(data => {
+
+        data.forEach(d => {
+          const dateStr = d["Thời gian tạo đơn"];
+          const monthNumber = dateStr ? new Date(dateStr).getMonth() + 1 : null;
+          d.Tháng = monthNumber ? `Tháng ${monthNumber.toString().padStart(2, '0')}` : "N/A";
+        });
+  
+        const groups = Array.from(new Set(data.map(d => `[${d["Mã nhóm hàng"]}] ${d["Tên nhóm hàng"]}`)));
+        const months = Array.from({ length: 12 }, (_, i) => `Tháng ${(i + 1).toString().padStart(2, '0')}`);
+  
+        const totalOrdersPerMonth = d3.rollup(
+          data,
+          v => new Set(v.map(d => d["Mã đơn hàng"])).size,
+          d => d.Tháng
+        );
+  
+        const groupSalesByMonth = d3.rollup(
+          data,
+          v => new Set(v.map(d => d["Mã đơn hàng"])).size,
+          d => `[${d["Mã nhóm hàng"]}] ${d["Tên nhóm hàng"]}`,
+          d => d.Tháng
+        );
+  
+        let seriesData = groups.map(group => {
+          return {
+            group: group,
+            values: months.map(month => {
+              const groupMonthSales = groupSalesByMonth.get(group)?.get(month) || 0;
+              const totalMonthOrders = totalOrdersPerMonth.get(month) || 1;
+              return {
+                month: month,
+                probability: groupMonthSales / totalMonthOrders
+              };
+            })
+          };
+        });
+  
+        const svg = d3.select("svg"),
+          margin = { top: 50, right: 220, bottom: 50, left: 70 },
+          width = +svg.attr("width") - margin.left - margin.right,
+          height = +svg.attr("height") - margin.top - margin.bottom;
+  
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  
+  
+        const x = d3.scalePoint()
+          .domain(months)
+          .range([0, width]);
+  
+
+        const y = d3.scaleLinear()
+          .domain([0.2, 0.7])
+          .range([height, 0]);
+  
+        const color = d3.scaleOrdinal(d3.schemeCategory10).domain(groups);
+  
+
+        g.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x));
+
+        g.append("g")
+          .call(d3.axisLeft(y).tickFormat(d => (d * 100).toFixed(0) + "%"));
+  
+        const line = d3.line()
+          .x(d => x(d.month))
+          .y(d => y(d.probability));
+  
+        g.selectAll(".line-path")
+          .data(seriesData)
+          .enter()
+          .append("path")
+          .attr("class", "line-path")
+          .attr("fill", "none")
+          .attr("stroke", d => color(d.group))
+          .attr("stroke-width", 2)
+          .attr("d", d => line(d.values));
+  
+        seriesData.forEach(s => {
+          g.selectAll(`.dot-${s.group}`)
+            .data(s.values)
+            .enter()
+            .append("circle")
+            .attr("cx", d => x(d.month))
+            .attr("cy", d => y(d.probability))
+            .attr("r", 3)
+            .attr("fill", color(s.group));
+  
+
+          g.selectAll(`.label-${s.group}`)
+            .data(s.values)
+            .enter()
+            .append("text")
+            .attr("x", d => x(d.month))
+            .attr("y", d => y(d.probability) - 5)
+            .attr("class", "label-text")
+            .text(d => (d.probability * 100).toFixed(1) + "%");
+        });
+  
+
+        const legend = svg.append("g")
+          .attr("transform", `translate(${width + margin.left + 10},${margin.top})`);
+  
+        seriesData.forEach((s, i) => {
+          const legendRow = legend.append("g")
+            .attr("transform", `translate(0, ${i * 20})`);
+          legendRow.append("rect")
+            .attr("width", 10)
+            .attr("height", 10)
+            .attr("fill", color(s.group));
+          legendRow.append("text")
+            .attr("x", 15)
+            .attr("y", 10)
+            .text(s.group)
+            .attr("font-size", "12px")
+            .attr("alignment-baseline", "middle");
+        });
+  
+
+        svg.append("text")
+          .attr("x", margin.left + width / 2)
+          .attr("y", svg.attr("height") - 5)
+          .attr("text-anchor", "middle")
+          .attr("class", "axis-label")
+          .text("Tháng");
+  
+
+        svg.append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2 - margin.top)
+          .attr("y", 20)
+          .attr("text-anchor", "middle")
+          .attr("class", "axis-label")
+          .text("Xác suất bán (%)");
+      });
+    </script>
+  
+  </body>
+  
+  </html>
+

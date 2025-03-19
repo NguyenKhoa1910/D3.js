@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Doanh số theo Nhóm hàng</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="cau2.css">
+</head>
+<body>
+    <h2>Biểu đồ Doanh số theo Nhóm hàng</h2>
+    <svg width="800" height="500"></svg>
+
+    <script>
+        d3.csv("data.csv").then(function(data) {
+
+            data.forEach(d => {
+                d["Thành tiền"] = (+d["Thành tiền"]) / 1_000_000; 
+                d["Nhóm hàng"] = `[${d["Mã nhóm hàng"]}] ${d["Tên nhóm hàng"]}`;
+            });
+
+
+            let doanhSoTheoNhom = d3.rollup(
+                data, 
+                v => d3.sum(v, d => d["Thành tiền"]),
+                d => d["Nhóm hàng"]
+            );
+
+    
+            let dataset = Array.from(doanhSoTheoNhom, ([nhom, doanhSo]) => ({ nhom, doanhSo }));
+
+          
+            dataset.sort((a, b) => b.doanhSo - a.doanhSo);
+
+      
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+                                 .domain(dataset.map(d => d.nhom));
+
+            const margin = { top: 30, right: 30, bottom: 30, left: 200 },
+                  width = 800 - margin.left - margin.right,
+                  height = dataset.length * 40; 
+
+            const svg = d3.select("svg")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                          .append("g")
+                          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+            const yScale = d3.scaleBand()
+                             .domain(dataset.map(d => d.nhom))
+                             .range([0, height])
+                             .padding(0.2);
+
+            const xScale = d3.scaleLinear()
+                             .domain([0, d3.max(dataset, d => d.doanhSo)])
+                             .range([0, width]);
+
+            svg.selectAll(".bar")
+               .data(dataset)
+               .enter()
+               .append("rect")
+               .attr("class", "bar")
+               .attr("y", d => yScale(d.nhom))
+               .attr("width", d => xScale(d.doanhSo))
+               .attr("height", yScale.bandwidth())
+               .attr("fill", d => colorScale(d.nhom)); 
+
+
+            svg.selectAll(".label")
+               .data(dataset)
+               .enter()
+               .append("text")
+               .attr("class", "label")
+               .attr("x", d => xScale(d.doanhSo) + 5)
+               .attr("y", d => yScale(d.nhom) + yScale.bandwidth() / 1.5)
+               .text(d => d3.format(".1f")(d.doanhSo) + " triệu VNĐ"); 
+
+            svg.append("g")
+               .attr("transform", `translate(0,${height})`)
+               .call(d3.axisBottom(xScale).ticks(5).tickFormat(d => d3.format(".1f")(d) + " triệu"));
+
+
+            svg.append("g")
+               .call(d3.axisLeft(yScale));
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Doanh số theo Khung Giờ</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="cau7.css">
+</head>
+<body>
+<h2>Xác suất bán hàng theo Nhóm hàng</h2>
+<div class="chart-container">
+    <svg width="1200" height="600"></svg>
+</div>
+
+<script>
+    d3.csv("data.csv").then(data => {
+
+        const totalOrders = new Set(data.map(d => d["Mã đơn hàng"])).size;
+
+        let groupSales = d3.rollup(
+            data,
+            v => new Set(v.map(d => d["Mã đơn hàng"])).size,
+            d => d["Mã nhóm hàng"],
+            d => d["Tên nhóm hàng"]
+        );
+
+        let groupSalesArray = [];
+        groupSales.forEach((tenNhom, maNhom) => {
+            tenNhom.forEach((soDon, ten) => {
+                groupSalesArray.push({
+                    "Mã nhóm hàng": maNhom,
+                    "Tên nhóm hàng": ten,
+                    "Số đơn hàng chứa nhóm": soDon,
+                    "Xác suất bán": soDon / totalOrders
+                });
+            });
+        });
+
+
+        groupSalesArray.sort((a, b) => b["Xác suất bán"] - a["Xác suất bán"]);
+
+
+        groupSalesArray.forEach(d => {
+            d["Nhóm hàng"] = `[${d["Mã nhóm hàng"]}] ${d["Tên nhóm hàng"]}`;
+        });
+
+        const svg = d3.select("svg"),
+            margin = { top: 40, right: 100, bottom: 40, left: 150 },
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const y = d3.scaleBand()
+            .domain(groupSalesArray.map(d => d["Nhóm hàng"]))
+            .range([0, height])
+            .padding(0.3);
+
+
+        const x = d3.scaleLinear()
+            .domain([0, d3.max(groupSalesArray, d => d["Xác suất bán"])])
+            .range([0, width]);
+
+        const colorScale = d3.scaleOrdinal()
+            .domain(groupSalesArray.map(d => d["Nhóm hàng"]))
+            .range(["#FFC107", "#FF6F61", "#606060", "#00A99D", "#3D3D3D"]);
+
+        g.selectAll(".bar")
+            .data(groupSalesArray)
+            .enter().append("rect")
+            .attr("class", "bar")
+            .attr("y", d => y(d["Nhóm hàng"]))
+            .attr("x", 0)
+            .attr("width", d => x(d["Xác suất bán"]))
+            .attr("height", y.bandwidth())
+            .attr("fill", d => colorScale(d["Nhóm hàng"]));
+
+        g.selectAll(".bar-label")
+            .data(groupSalesArray)
+            .enter().append("text")
+            .attr("x", d => x(d["Xác suất bán"]) - 5)
+            .attr("y", d => y(d["Nhóm hàng"]) + y.bandwidth() / 2)
+            .attr("text-anchor", "end")
+            .text(d => (d["Xác suất bán"] * 100).toFixed(1) + "%")
+            .attr("fill", "white")
+            .attr("font-size", "10px")
+
+
+        g.append("g")
+            .call(d3.axisLeft(y));
+
+
+        g.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).tickFormat(d => (d * 100).toFixed(0) + "%"));
+    });
+</script>
+
+</body>
+</html>
+
+
+

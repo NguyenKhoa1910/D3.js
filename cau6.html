@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Doanh số theo Khung Giờ</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="cau6.css">
+</head>
+<body>
+    <h2>Doanh số bán hàng trung bình theo khung giờ</h2>
+    <svg width="1000" height="500"></svg>
+
+    <script>
+        d3.csv("data.csv").then(function(data) {
+
+            data.forEach(d => {
+                d["Thành tiền"] = +d["Thành tiền"]; 
+                let date = new Date(d["Thời gian tạo đơn"]);
+                let hour = date.getHours();
+                d["Khung giờ"] = `${String(hour).padStart(2, '0')}:00-${String(hour).padStart(2, '0')}:59`;
+                d["Ngày"] = date.toISOString().split("T")[0]; 
+            });
+
+            let doanhSoTheoKhungGio = d3.rollup(
+                data, 
+                v => d3.sum(v, d => d["Thành tiền"]) / new Set(v.map(d => d["Ngày"])).size,
+                d => d["Khung giờ"]
+            );
+
+
+            let dataset = Array.from(doanhSoTheoKhungGio, ([khungGio, doanhSo]) => ({ khungGio, doanhSo }))
+                               .sort((a, b) => a.khungGio.localeCompare(b.khungGio));
+
+            const margin = { top: 30, right: 30, bottom: 100, left: 100 },
+                  width = 1000 - margin.left - margin.right,
+                  height = 400 - margin.top - margin.bottom;
+
+            const svg = d3.select("svg")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                          .append("g")
+                          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+            const xScale = d3.scaleBand()
+                             .domain(dataset.map(d => d.khungGio))
+                             .range([0, width])
+                             .padding(0.3);
+
+
+            const yScale = d3.scaleLinear()
+                             .domain([0, d3.max(dataset, d => d.doanhSo)])
+                             .nice()
+                             .range([height, 0]);
+
+
+            const colorScale = d3.scaleOrdinal(d3.schemeSet3)
+                                 .domain(dataset.map(d => d.khungGio));
+
+
+            svg.selectAll(".bar")
+               .data(dataset)
+               .enter()
+               .append("rect")
+               .attr("class", "bar")
+               .attr("x", d => xScale(d.khungGio))
+               .attr("y", d => yScale(d.doanhSo))
+               .attr("width", xScale.bandwidth())
+               .attr("height", d => height - yScale(d.doanhSo))
+               .attr("fill", d => colorScale(d.khungGio));
+
+
+            svg.selectAll(".label")
+               .data(dataset)
+               .enter()
+               .append("text")
+               .attr("class", "label")
+               .attr("x", d => xScale(d.khungGio) + xScale.bandwidth() / 2)
+               .attr("y", d => yScale(d.doanhSo) - 5)
+               .attr("text-anchor", "middle")
+               .text(d => new Intl.NumberFormat("vi-VN").format(d.doanhSo) + " VNĐ");
+
+  
+            svg.append("g")
+               .attr("transform", `translate(0,${height})`)
+               .call(d3.axisBottom(xScale))
+               .selectAll("text")
+               .attr("transform", "rotate(-45)")
+               .style("text-anchor", "end");
+
+            svg.append("g")
+               .call(d3.axisLeft(yScale).ticks(5).tickFormat(d => new Intl.NumberFormat("vi-VN").format(d)));
+        });
+    </script>
+</body>
+</html>
+

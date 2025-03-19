@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doanh số bán hàng theo Tháng</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <link rel="stylesheet" href="cau3.css">
+</head>
+<body>
+    <h2>Doanh số bán hàng theo Tháng</h2>
+    <svg id="chart" width="900" height="500"></svg>
+
+    <script>
+        d3.csv("data.csv").then(function(data) {
+            data.forEach(d => {
+                let date = new Date(d["Thời gian tạo đơn"]);
+                d.Tháng = "Tháng " + (date.getMonth() + 1).toString().padStart(2, "0");
+                d["Thành tiền"] = +d["Thành tiền"];
+            });
+
+            let doanhSoTheoThang = d3.rollup(data, 
+                v => d3.sum(v, d => d["Thành tiền"]), 
+                d => d.Tháng
+            );
+
+            let dataset = Array.from(doanhSoTheoThang, ([Tháng, Tổng]) => ({ 
+                Tháng, Tổng: Math.round(Tổng / 1e6) 
+            })).sort((a, b) => a.Tháng.localeCompare(b.Tháng));
+
+            const margin = {top: 40, right: 20, bottom: 50, left: 80},
+                  width = 900 - margin.left - margin.right,
+                  height = 500 - margin.top - margin.bottom;
+
+            const svg = d3.select("#chart")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                          .append("g")
+                          .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            const x = d3.scaleBand()
+                        .domain(dataset.map(d => d.Tháng))
+                        .range([0, width])
+                        .padding(0.3);
+
+            const y = d3.scaleLinear()
+                        .domain([0, d3.max(dataset, d => d.Tổng)])
+                        .nice()
+                        .range([height, 0]);
+
+            const colorScale = d3.scaleOrdinal(d3.schemeSet3);
+
+            svg.append("g")
+               .attr("class", "grid")
+               .call(d3.axisLeft(y).tickSize(-width).tickFormat(""));
+
+            svg.append("g")
+               .attr("transform", `translate(0, ${height})`)
+               .call(d3.axisBottom(x));
+
+            svg.append("g")
+               .call(d3.axisLeft(y).tickFormat(d => d + " triệu"));
+
+            svg.selectAll(".bar")
+               .data(dataset)
+               .enter()
+               .append("rect")
+               .attr("class", "bar")
+               .attr("x", d => x(d.Tháng))
+               .attr("y", d => y(d.Tổng))
+               .attr("width", x.bandwidth())
+               .attr("height", d => height - y(d.Tổng))
+               .attr("fill", d => colorScale(d.Tháng));
+
+            svg.selectAll(".label")
+               .data(dataset)
+               .enter()
+               .append("text")
+               .attr("class", "label")
+               .attr("x", d => x(d.Tháng) + x.bandwidth() / 2)
+               .attr("y", d => y(d.Tổng) - 5)
+               .text(d => d.Tổng + " triệu");
+        });
+    </script>
+</body>
+</html>
+

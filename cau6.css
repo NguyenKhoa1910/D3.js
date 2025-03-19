@@ -1,0 +1,30 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+h2 {
+    margin-bottom: 20px;
+}
+
+svg {
+    display: block;
+    margin: auto;
+}
+
+.bar {
+    transition: fill 0.3s;
+}
+
+.bar:hover {
+    fill: orange;
+}
+
+.label {
+    font-size: 12px;
+    fill: black;
+}
+
+.axis text {
+    font-size: 12px;
+}

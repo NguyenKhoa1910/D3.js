@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Doanh số Trung bình theo Ngày trong Tuần</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="cau4.css">
+</head>
+<body>
+    <h2>Biểu đồ Doanh số Trung bình theo Ngày trong Tuần</h2>
+    <svg width="900" height="500"></svg>
+
+    <script>
+        d3.csv("data.csv").then(function(data) {
+
+            let salesData = {};
+            let uniqueDates = new Set();
+
+            data.forEach(d => {
+                d["Thành tiền"] = +d["Thành tiền"]; 
+                let date = new Date(d["Thời gian tạo đơn"]);
+                let weekday = date.getDay(); 
+                let dateStr = date.toISOString().split("T")[0]; 
+
+                if (!salesData[weekday]) {
+                    salesData[weekday] = { totalSales: 0, uniqueDates: new Set() };
+                }
+                salesData[weekday].totalSales += d["Thành tiền"];
+                salesData[weekday].uniqueDates.add(dateStr);
+
+                uniqueDates.add(dateStr);
+            });
+
+
+            let daysMapping = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+            let dataset = Object.keys(salesData).map(day => ({
+                day: daysMapping[day],
+                avgSales: Math.round((salesData[day].totalSales / salesData[day].uniqueDates.size) / 1e5) / 10 
+            }));
+
+            dataset.sort((a, b) => daysMapping.indexOf(a.day) - daysMapping.indexOf(b.day));
+
+ 
+            const margin = { top: 30, right: 30, bottom: 50, left: 100 },
+                  width = 900 - margin.left - margin.right,
+                  height = 400 - margin.top - margin.bottom;
+
+            const svg = d3.select("svg")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                          .append("g")
+                          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const xScale = d3.scaleBand()
+                             .domain(dataset.map(d => d.day))
+                             .range([0, width])
+                             .padding(0.3);
+
+
+            const yScale = d3.scaleLinear()
+                             .domain([0, d3.max(dataset, d => d.avgSales)])
+                             .nice()
+                             .range([height, 0]);
+
+
+            const colorScale = d3.scaleOrdinal(d3.schemeSet2)
+                                 .domain(dataset.map(d => d.day));
+
+
+            svg.selectAll(".bar")
+               .data(dataset)
+               .enter()
+               .append("rect")
+               .attr("class", "bar")
+               .attr("x", d => xScale(d.day))
+               .attr("y", d => yScale(d.avgSales))
+               .attr("width", xScale.bandwidth())
+               .attr("height", d => height - yScale(d.avgSales))
+               .attr("fill", d => colorScale(d.day));
+
+            svg.selectAll(".label")
+               .data(dataset)
+               .enter()
+               .append("text")
+               .attr("class", "label")
+               .attr("x", d => xScale(d.day) + xScale.bandwidth() / 2)
+               .attr("y", d => yScale(d.avgSales) - 5)
+               .attr("text-anchor", "middle")
+               .text(d => d.avgSales + " Tr VNĐ"); 
+
+
+            svg.append("g")
+               .attr("transform", `translate(0,${height})`)
+               .call(d3.axisBottom(xScale));
+
+
+            svg.append("g")
+               .call(d3.axisLeft(yScale).ticks(5).tickFormat(d => d + " Tr VNĐ"));
+        });
+    </script>
+</body>
+</html>
+
+
+

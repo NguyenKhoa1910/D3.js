@@ -1,0 +1,21 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+svg {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.bar:hover {
+    opacity: 0.8;
+}
+
+.label {
+    font-size: 12px;
+    fill: black;
+}
+
+
+
